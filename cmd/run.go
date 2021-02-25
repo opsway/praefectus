@@ -10,6 +10,7 @@ import (
 	"github.com/boodmo/praefectus/internal/server"
 	"github.com/boodmo/praefectus/internal/signals"
 	"github.com/boodmo/praefectus/internal/storage"
+	"github.com/boodmo/praefectus/internal/timers"
 	"github.com/boodmo/praefectus/internal/workers"
 )
 
@@ -37,6 +38,9 @@ var runCmd = &cobra.Command{
 
 		apiServer := server.New(cfg, ps)
 		go apiServer.Start()
+
+		t := timers.New(cfg, isStopping)
+		go t.Start()
 
 		p := workers.NewPool(cfg, isStopping, ps)
 		p.Run()
