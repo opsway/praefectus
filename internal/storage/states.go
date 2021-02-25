@@ -3,7 +3,7 @@ package storage
 const (
 	StateUnknown = iota
 	StateStarting
-	StateStared
+	StateStarted
 	StateIdle
 	StateBusy
 	StateStopping
@@ -15,7 +15,7 @@ func StateName(state int) string {
 	switch state {
 	case StateStarting:
 		stateName = "Starting"
-	case StateStared:
+	case StateStarted:
 		stateName = "Started"
 	case StateIdle:
 		stateName = "IDLE"

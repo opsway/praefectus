@@ -3,27 +3,18 @@ package main
 import (
 	"log"
 
-	"github.com/boodmo/praefectus/internal/rpc"
-	"github.com/boodmo/praefectus/internal/server"
-	"github.com/boodmo/praefectus/internal/signals"
-	"github.com/boodmo/praefectus/internal/storage"
-	"github.com/boodmo/praefectus/internal/workers"
+	"github.com/spf13/cobra"
 )
 
 func main() {
-	isStopping := make(chan struct{})
-	ps := storage.NewProcStorage()
-
-	rpcHandler := rpc.NewRPCHandler(ps)
-	if err := rpc.Register(rpcHandler); err != nil {
-		log.Fatal(err)
+	rootCmd := &cobra.Command{
+		Use: "praefectus [command]",
 	}
 
-	signals.CatchSigterm(isStopping)
+	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(versionCmd)
 
-	apiServer := server.New(ps)
-	go apiServer.Start()
-
-	p := workers.NewPool(2, isStopping, ps)
-	p.Run()
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatal(err)
+	}
 }

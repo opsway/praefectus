@@ -2,32 +2,32 @@ package workers
 
 import (
 	"fmt"
-	"sync"
-
+	"github.com/boodmo/praefectus/internal/config"
 	"github.com/boodmo/praefectus/internal/storage"
+	"sync"
+	"time"
 )
 
 type Pool struct {
-	workers      []*Worker
-	workerNum    int
-	isStopping   chan struct{}
+	config       *config.Config
 	stateStorage *storage.ProcStorage
+	isStopping   chan struct{}
 }
 
-func NewPool(num int, stoppingChan chan struct{}, ps *storage.ProcStorage) *Pool {
+func NewPool(cfg *config.Config, stoppingChan chan struct{}, ps *storage.ProcStorage) *Pool {
 	return &Pool{
-		workers:      make([]*Worker, 0, num),
-		workerNum:    num,
-		isStopping:   stoppingChan,
+		config:       cfg,
 		stateStorage: ps,
+		isStopping:   stoppingChan,
 	}
 }
 
 func (p *Pool) Run() {
 	wg := &sync.WaitGroup{}
-	workerChan := make(chan int, p.workerNum)
-	for i := 0; i < p.workerNum; i++ {
-		workerChan <- i + 1
+	commands := mergeCommandsToFlat(p.config.Workers)
+	workerChan := make(chan string, len(commands))
+	for _, cmd := range commands {
+		workerChan <- cmd
 	}
 
 	p.workerLoop(workerChan, wg)
@@ -35,28 +35,46 @@ func (p *Pool) Run() {
 	fmt.Printf("Main: Done!\n")
 }
 
-func (p *Pool) workerLoop(workerChan chan int, wg *sync.WaitGroup) {
+func (p *Pool) workerLoop(workerChan chan string, wg *sync.WaitGroup) {
+	var idx int
 	for {
 		select {
 		case <-p.isStopping:
 			fmt.Printf("Got stop signal\n")
 			return
-		case idx := <-workerChan:
-			fmt.Printf("[WRK#%d] Got worker queue\n", idx)
+		case cmd := <-workerChan:
+			idx++
+			fmt.Printf("[WRK#%d] Got command for new worker: %s\n", idx, cmd)
 			wg.Add(1)
 			go func(idx int) {
-				w := NewWorker(p.stateStorage)
+				w, err := NewWorker(cmd, p.stateStorage)
+				if err != nil {
+					fmt.Printf("[WRK#%d] Worker init error: %s\n", idx, err)
+					return
+				}
 				fmt.Printf("[WRK#%d] Starting new worker process\n", idx)
 				if err := w.Start(w.isStopping); err != nil {
-					// ToDo: Start retry limit
 					fmt.Printf("[WRK#%d] Process error: %s\n", idx, err)
+					time.Sleep(3 * time.Second)
 				}
 				fmt.Printf("[WRK#%d] Done!\n", idx)
 				wg.Done()
 
 				fmt.Printf("[WRK#%d] Start new worker after stopping\n", idx)
-				workerChan <- idx
+				workerChan <- cmd
 			}(idx)
 		}
 	}
+}
+
+// Merge workers' commands from config into one flat slice
+func mergeCommandsToFlat(workersCfg map[string]config.WorkersConfig) []string {
+	commands := make([]string, 0, len(workersCfg))
+	for _, cfg := range workersCfg {
+		for i := uint8(0); i < cfg.Number; i++ {
+			commands = append(commands, cfg.Command)
+		}
+	}
+
+	return commands
 }

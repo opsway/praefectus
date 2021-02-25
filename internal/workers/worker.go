@@ -1,10 +1,12 @@
 package workers
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/boodmo/praefectus/internal/storage"
@@ -17,16 +19,21 @@ type Worker struct {
 	socketPath   string
 }
 
-func NewWorker(ps *storage.ProcStorage) *Worker {
-	cmd := exec.Command("bin/app", "messenger:consume", "messenger.transport.amqp") // ToDo: pass via args
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+func NewWorker(cmd string, ps *storage.ProcStorage) (*Worker, error) {
+	chunks := strings.Split(cmd, " ")
+	if chunks[0] == "" {
+		return nil, errors.New("command is required")
+	}
+
+	command := exec.Command(chunks[0], chunks[1:]...)
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
 
 	return &Worker{
-		command:      cmd,
+		command:      command,
 		stateStorage: ps,
 		isStopping:   make(chan struct{}),
-	}
+	}, nil
 }
 
 func (w *Worker) Start(stopping chan struct{}) error {

@@ -2,17 +2,26 @@ package server
 
 import (
 	"log"
+	"net"
+	"strconv"
+	"time"
 
+	"github.com/gofiber/fiber/v2"
+
+	"github.com/boodmo/praefectus/internal/config"
 	"github.com/boodmo/praefectus/internal/storage"
 )
-import "github.com/gofiber/fiber/v2"
 
 type Server struct {
+	config       *config.Config
 	stateStorage *storage.ProcStorage
 }
 
-func New(ps *storage.ProcStorage) *Server {
-	return &Server{stateStorage: ps}
+func New(cfg *config.Config, ps *storage.ProcStorage) *Server {
+	return &Server{
+		config:       cfg,
+		stateStorage: ps,
+	}
 }
 
 func (s *Server) Start() {
@@ -22,13 +31,15 @@ func (s *Server) Start() {
 		result := make([]map[string]interface{}, 0, len(wsList))
 		for _, ws := range wsList {
 			result = append(result, map[string]interface{}{
-				"pid":   ws.Process.Pid,
-				"state": storage.StateName(ws.State),
+				"pid":        ws.Process.Pid,
+				"state":      storage.StateName(ws.State),
+				"updated_at": ws.UpdatedAt.Format(time.RFC3339),
 			})
 		}
 
 		return ctx.JSON(result)
 	})
 
-	log.Fatal(app.Listen("0.0.0.0:9000"))
+	addr := net.JoinHostPort(s.config.Server.Host, strconv.Itoa(s.config.Server.Port))
+	log.Fatal(app.Listen(addr))
 }
