@@ -3,13 +3,9 @@ host = "0.0.0.0"
 port = 9000
 
 [workers]
-    [workers.messenger_consume]
-    command = "bin/app messenger:consume messenger.transport.amqp"
-    number = 2
-
     [workers.messenger_cron]
-    command = "bin/app messenger:consume messenger.transport.some_else"
-    number = 1
+    command = "/usr/bin/php /home/max/Projects/opsway/devarea/ipc/worker.php"
+    number = 3
 
 [timers]
     [timers.cron_process]

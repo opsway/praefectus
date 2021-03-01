@@ -2,23 +2,24 @@ package workers
 
 import (
 	"fmt"
-	"github.com/boodmo/praefectus/internal/config"
-	"github.com/boodmo/praefectus/internal/storage"
 	"sync"
 	"time"
+
+	"github.com/boodmo/praefectus/internal/config"
+	"github.com/boodmo/praefectus/internal/metrics"
 )
 
 type Pool struct {
-	config       *config.Config
-	stateStorage *storage.ProcStorage
-	isStopping   chan struct{}
+	config     *config.Config
+	wsStorage  *metrics.WorkerStatStorage
+	isStopping chan struct{}
 }
 
-func NewPool(cfg *config.Config, stoppingChan chan struct{}, ps *storage.ProcStorage) *Pool {
+func NewPool(cfg *config.Config, stoppingChan chan struct{}, wsStorage *metrics.WorkerStatStorage) *Pool {
 	return &Pool{
-		config:       cfg,
-		stateStorage: ps,
-		isStopping:   stoppingChan,
+		config:     cfg,
+		wsStorage:  wsStorage,
+		isStopping: stoppingChan,
 	}
 }
 
@@ -47,7 +48,7 @@ func (p *Pool) workerLoop(workerChan chan string, wg *sync.WaitGroup) {
 			fmt.Printf("[WRK#%d] Got command for new worker: %s\n", idx, cmd)
 			wg.Add(1)
 			go func(idx int) {
-				w, err := NewWorker(cmd, p.stateStorage)
+				w, err := NewWorker(cmd, p.wsStorage)
 				if err != nil {
 					fmt.Printf("[WRK#%d] Worker init error: %s\n", idx, err)
 					return

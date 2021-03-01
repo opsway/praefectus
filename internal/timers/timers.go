@@ -36,7 +36,7 @@ func (t *Timers) Start() {
 			}
 
 			tc := time.NewTicker(time.Duration(cfg.Frequency) * time.Second)
-			for _ = range tc.C {
+			for range tc.C {
 				fmt.Printf("Ticker! %s\n", cfg.Command)
 
 				command := exec.Command(chunks[0], chunks[1:]...)

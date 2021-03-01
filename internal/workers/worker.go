@@ -9,17 +9,17 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/boodmo/praefectus/internal/storage"
+	"github.com/boodmo/praefectus/internal/metrics"
 )
 
 type Worker struct {
-	command      *exec.Cmd
-	stateStorage *storage.ProcStorage
-	isStopping   chan struct{}
-	socketPath   string
+	command    *exec.Cmd
+	wsStorage  *metrics.WorkerStatStorage
+	isStopping chan struct{}
+	socketPath string
 }
 
-func NewWorker(cmd string, ps *storage.ProcStorage) (*Worker, error) {
+func NewWorker(cmd string, wsStorage *metrics.WorkerStatStorage) (*Worker, error) {
 	chunks := strings.Split(cmd, " ")
 	if chunks[0] == "" {
 		return nil, errors.New("command is required")
@@ -30,9 +30,9 @@ func NewWorker(cmd string, ps *storage.ProcStorage) (*Worker, error) {
 	command.Stderr = os.Stderr
 
 	return &Worker{
-		command:      command,
-		stateStorage: ps,
-		isStopping:   make(chan struct{}),
+		command:    command,
+		wsStorage:  wsStorage,
+		isStopping: make(chan struct{}),
 	}, nil
 }
 
@@ -41,14 +41,11 @@ func (w *Worker) Start(stopping chan struct{}) error {
 		return err
 	}
 	fmt.Printf("Worker started [PID: %d]\n", w.command.Process.Pid)
-	wStat := w.stateStorage.Add(w.command.Process)
-	if err := w.stateStorage.ChangeState(wStat, storage.StateStarting); err != nil {
-		return err
-	}
+	wStat := w.wsStorage.Add(w.command.Process.Pid)
 
 	go func() {
 		<-stopping
-		if err := w.stateStorage.ChangeState(wStat, storage.StateStopping); err != nil {
+		if err := w.wsStorage.ChangeState(wStat, metrics.WorkerStateStopping); err != nil {
 			fmt.Printf("Error Change State [PID: %d] %s\n", w.command.Process.Pid, err)
 		}
 		fmt.Printf("Send SIGTERM to worker [PID: %d]\n", w.command.Process.Pid)
@@ -70,7 +67,7 @@ func (w *Worker) Start(stopping chan struct{}) error {
 	}
 
 	fmt.Printf("Worker stopped [PID: %d]\n", w.command.Process.Pid)
-	if err := w.stateStorage.ChangeState(wStat, storage.StateStopped); err != nil {
+	if err := w.wsStorage.ChangeState(wStat, metrics.WorkerStateStopped); err != nil {
 		return err
 	}
 
