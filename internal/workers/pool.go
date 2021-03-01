@@ -69,7 +69,7 @@ func (p *Pool) workerLoop(workerChan chan string, wg *sync.WaitGroup) {
 }
 
 // Merge workers' commands from config into one flat slice
-func mergeCommandsToFlat(workersCfg map[string]config.WorkersConfig) []string {
+func mergeCommandsToFlat(workersCfg []config.WorkersConfig) []string {
 	commands := make([]string, 0, len(workersCfg))
 	for _, cfg := range workersCfg {
 		for i := uint8(0); i < cfg.Number; i++ {

@@ -3,7 +3,6 @@ module github.com/boodmo/praefectus
 go 1.16
 
 require (
-	github.com/BurntSushi/toml v0.3.1
 	github.com/heptiolabs/healthcheck v0.0.0-20180807145615-6ff867650f40
 	github.com/prometheus/client_golang v0.9.3
 	github.com/spf13/cobra v1.1.3

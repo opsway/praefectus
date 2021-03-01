@@ -2,8 +2,8 @@ package config
 
 type Config struct {
 	Server  ServerConfig
-	Workers map[string]WorkersConfig
-	Timers  map[string]TimersConfig
+	Workers []WorkersConfig
+	Timers  []TimersConfig
 }
 
 type ServerConfig struct {

@@ -15,14 +15,29 @@ import (
 )
 
 var runCmd = &cobra.Command{
-	Use:   "run [path to config]",
+	Use:   "run",
 	Short: "Start workers, timers and API server for metrics",
-	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		cfg, err := config.ParseFile(args[0])
-		if err != nil {
-			log.Fatal(err)
+		cfg := &config.Config{
+			Server: config.ServerConfig{
+				Host: flagServerHost,
+				Port: flagServerPort,
+			},
+			Workers: make([]config.WorkersConfig, 0, len(flagWorkerPoolCmds)),
+			Timers:  make([]config.TimersConfig, 0, 1),
 		}
+
+		for _, cmd := range flagWorkerPoolCmds {
+			cfg.Workers = append(cfg.Workers, config.WorkersConfig{
+				Command: cmd,
+				Number:  flagWorkerNumber,
+			})
+		}
+
+		cfg.Timers = append(cfg.Timers, config.TimersConfig{
+			Command:   flagTimerCmd,
+			Frequency: flagTimerInterval,
+		})
 
 		qStorage := metrics.NewQueueStorage()
 		qmStorage := metrics.NewQueueMessageStorage()
