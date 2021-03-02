@@ -19,7 +19,7 @@ type Metrics struct {
 	messageFailedCount   QueryMessageGauge
 	messageSucceedCount  QueryMessageGauge
 	messageProcessedTime *prometheus.HistogramVec
-	queueSize            *prometheus.HistogramVec
+	queueSize            *prometheus.GaugeVec
 }
 
 func NewMetrics(qStorage *QueueStorage, qmStorage *QueueMessageStorage, wsStorage *WorkerStatStorage) (*Metrics, error) {
@@ -71,18 +71,17 @@ func NewMetrics(qStorage *QueueStorage, qmStorage *QueueMessageStorage, wsStorag
 			Name:      "message_processed_time",
 			Help:      "Duration of message processing",
 		},
-		[]string{"transport", "bus", "message"},
+		[]string{"name", "transport", "bus"},
 	)
 	if err := prometheus.Register(messageProcessedTime); err != nil {
 		return nil, err
 	}
 
-	queueSize := prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
+	queueSize := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
 			Namespace: "praefectus",
 			Name:      "queue_size",
 			Help:      "Message queue size",
-			Buckets:   []float64{1, 10, 25, 50, 100},
 		},
 		[]string{"transport", "bus"},
 	)
@@ -113,16 +112,16 @@ func (m *Metrics) Start() {
 		lastGatherTime = time.Now()
 		for _, qm := range processedMessages {
 			m.messageProcessedTime.
-				WithLabelValues(qm.Transport, qm.Bus, qm.ID).
+				WithLabelValues(qm.Name, qm.Transport, qm.Bus).
 				Observe(qm.GetProcessedTime().Seconds())
-			fmt.Printf("[Send Metric] Message %s has duration %f\n", qm.ID, qm.GetProcessedTime().Seconds())
+			fmt.Printf("[Send Metric] Message %s has duration %f\n", qm.Name, qm.GetProcessedTime().Seconds())
 		}
 
 		queues := m.qStorage.GetList()
 		for _, q := range queues {
 			m.queueSize.
 				WithLabelValues(q.Transport, q.Bus).
-				Observe(float64(q.Size))
+				Set(float64(q.Size))
 			fmt.Printf("[Send Metric] Queue %s:%s has size %f\n", q.Transport, q.Bus, float64(q.Size))
 		}
 

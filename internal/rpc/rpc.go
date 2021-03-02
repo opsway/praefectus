@@ -68,9 +68,10 @@ func (h *PraefectusRPC) MessageState(payload map[string]interface{}, r *map[stri
 		}
 		fmt.Printf("Message state [%s] changed to <%f>\n", id, state)
 	} else {
+		name := payload["name"]
 		transport := payload["transport"]
 		bus := payload["bus"]
-		qm := h.qmStorage.Add(id.(string), transport.(string), bus.(string))
+		qm := h.qmStorage.Add(id.(string), name.(string), transport.(string), bus.(string))
 		fmt.Printf("Message added %+v\n", qm)
 	}
 

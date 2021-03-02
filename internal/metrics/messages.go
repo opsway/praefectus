@@ -22,6 +22,7 @@ func (s QueueMessageState) String() string {
 // QueueMessage
 type QueueMessage struct {
 	ID         string
+	Name       string
 	Transport  string
 	Bus        string
 	State      QueueMessageState
@@ -48,11 +49,12 @@ func NewQueueMessageStorage() *QueueMessageStorage {
 	}
 }
 
-func (qmStorage *QueueMessageStorage) Add(id, transport, bus string) *QueueMessage {
+func (qmStorage *QueueMessageStorage) Add(id, name, transport, bus string) *QueueMessage {
 	qmStorage.mu.Lock()
 	defer qmStorage.mu.Unlock()
 	qm := &QueueMessage{
 		ID:        id,
+		Name:      name,
 		Transport: transport,
 		Bus:       bus,
 		State:     MessageStateProcessing,
