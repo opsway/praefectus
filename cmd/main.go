@@ -8,7 +8,6 @@ import (
 
 var (
 	flagWorkerPoolCmds []string
-	flagWorkerNumber   uint8
 	flagServerHost     string
 	flagServerPort     int
 	flagTimerCmd       string
@@ -17,7 +16,6 @@ var (
 
 func init() {
 	runCmd.Flags().StringArrayVarP(&flagWorkerPoolCmds, "worker-pool-cmd", "w", []string{}, "")
-	runCmd.Flags().Uint8VarP(&flagWorkerNumber, "worker-number", "n", 1, "")
 	runCmd.Flags().StringVarP(&flagServerHost, "host", "", "0.0.0.0", "")
 	runCmd.Flags().IntVarP(&flagServerPort, "port", "", 9000, "")
 	runCmd.Flags().StringVarP(&flagTimerCmd, "timer-cmd", "", "", "")

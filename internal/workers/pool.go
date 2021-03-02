@@ -25,7 +25,7 @@ func NewPool(cfg *config.Config, stoppingChan chan struct{}, wsStorage *metrics.
 
 func (p *Pool) Run() {
 	wg := &sync.WaitGroup{}
-	commands := mergeCommandsToFlat(p.config.Workers)
+	commands := p.config.Workers
 	workerChan := make(chan string, len(commands))
 	for _, cmd := range commands {
 		workerChan <- cmd
@@ -66,16 +66,4 @@ func (p *Pool) workerLoop(workerChan chan string, wg *sync.WaitGroup) {
 			}(idx)
 		}
 	}
-}
-
-// Merge workers' commands from config into one flat slice
-func mergeCommandsToFlat(workersCfg []config.WorkersConfig) []string {
-	commands := make([]string, 0, len(workersCfg))
-	for _, cfg := range workersCfg {
-		for i := uint8(0); i < cfg.Number; i++ {
-			commands = append(commands, cfg.Command)
-		}
-	}
-
-	return commands
 }

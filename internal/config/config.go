@@ -2,8 +2,8 @@ package config
 
 type Config struct {
 	Server  ServerConfig
-	Workers []WorkersConfig
-	Timers  []TimersConfig
+	Workers []string
+	Timer   TimerConfig
 }
 
 type ServerConfig struct {
@@ -16,7 +16,7 @@ type WorkersConfig struct {
 	Number  uint8
 }
 
-type TimersConfig struct {
+type TimerConfig struct {
 	Command   string
 	Frequency uint16
 }

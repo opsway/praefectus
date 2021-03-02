@@ -56,20 +56,20 @@ func (h *PraefectusRPC) WorkerState(payload map[string]int, r *map[string]string
 func (h *PraefectusRPC) MessageState(payload map[string]interface{}, r *map[string]string) error {
 	fmt.Printf("MessageState: %+v\n", payload)
 
-	id, _ := payload["id"]
+	id := payload["id"]
 
 	// ToDo: Map to struct
 	qm := h.qmStorage.Get(id.(string))
 	if qm != nil {
-		state, _ := payload["state"]
+		state := payload["state"]
 		if err := h.qmStorage.ChangeState(qm, metrics.QueueMessageState(state.(float64))); err != nil {
 			*r = map[string]string{"status": "Error", "msg": "State is required"}
 			return nil // ToDo: or return error
 		}
 		fmt.Printf("Message state [%s] changed to <%f>\n", id, state)
 	} else {
-		transport, _ := payload["transport"]
-		bus, _ := payload["bus"]
+		transport := payload["transport"]
+		bus := payload["bus"]
 		qm := h.qmStorage.Add(id.(string), transport.(string), bus.(string))
 		fmt.Printf("Message added %+v\n", qm)
 	}
@@ -81,9 +81,9 @@ func (h *PraefectusRPC) QueueSize(payload map[string]interface{}, r *map[string]
 	//fmt.Printf("QueueSize: %+v\n", payload)
 
 	// ToDo: Map to struct
-	transport, _ := payload["transport"]
-	bus, _ := payload["bus"]
-	size, _ := payload["size"]
+	transport := payload["transport"]
+	bus := payload["bus"]
+	size := payload["size"]
 
 	q := h.qStorage.Get(transport.(string), bus.(string))
 	if q == nil {

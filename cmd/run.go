@@ -23,21 +23,13 @@ var runCmd = &cobra.Command{
 				Host: flagServerHost,
 				Port: flagServerPort,
 			},
-			Workers: make([]config.WorkersConfig, 0, len(flagWorkerPoolCmds)),
-			Timers:  make([]config.TimersConfig, 0, 1),
+			Workers: make([]string, 0, len(flagWorkerPoolCmds)),
+			Timer: config.TimerConfig{
+				Command:   flagTimerCmd,
+				Frequency: flagTimerInterval,
+			},
 		}
-
-		for _, cmd := range flagWorkerPoolCmds {
-			cfg.Workers = append(cfg.Workers, config.WorkersConfig{
-				Command: cmd,
-				Number:  flagWorkerNumber,
-			})
-		}
-
-		cfg.Timers = append(cfg.Timers, config.TimersConfig{
-			Command:   flagTimerCmd,
-			Frequency: flagTimerInterval,
-		})
+		cfg.Workers = append(cfg.Workers, flagWorkerPoolCmds...)
 
 		qStorage := metrics.NewQueueStorage()
 		qmStorage := metrics.NewQueueMessageStorage()
