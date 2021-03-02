@@ -9,17 +9,20 @@ import (
 	"strings"
 	"syscall"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/boodmo/praefectus/internal/metrics"
 )
 
 type Worker struct {
+	id         uint32
 	command    *exec.Cmd
 	wsStorage  *metrics.WorkerStatStorage
 	isStopping chan struct{}
 	socketPath string
 }
 
-func NewWorker(cmd string, wsStorage *metrics.WorkerStatStorage) (*Worker, error) {
+func NewWorker(id uint32, cmd string, wsStorage *metrics.WorkerStatStorage) (*Worker, error) {
 	chunks := strings.Split(cmd, " ")
 	if chunks[0] == "" {
 		return nil, errors.New("command is required")
@@ -30,6 +33,7 @@ func NewWorker(cmd string, wsStorage *metrics.WorkerStatStorage) (*Worker, error
 	command.Stderr = os.Stderr
 
 	return &Worker{
+		id:         id,
 		command:    command,
 		wsStorage:  wsStorage,
 		isStopping: make(chan struct{}),
@@ -40,25 +44,32 @@ func (w *Worker) Start(stopping chan struct{}) error {
 	if err := w.command.Start(); err != nil {
 		return err
 	}
-	fmt.Printf("Worker started [PID: %d]\n", w.command.Process.Pid)
+
+	workerLog := log.WithFields(log.Fields{"worker_id": w.id, "pid": w.command.Process.Pid})
+	workerLog.Debug("Worker: Successfully started")
 	wStat := w.wsStorage.Add(w.command.Process.Pid)
 
 	go func() {
 		<-stopping
 		if err := w.wsStorage.ChangeState(wStat, metrics.WorkerStateStopping); err != nil {
-			fmt.Printf("Error Change State [PID: %d] %s\n", w.command.Process.Pid, err)
+			workerLog.WithError(err).
+				Error("Worker: Changing state error")
 		}
-		fmt.Printf("Send SIGTERM to worker [PID: %d]\n", w.command.Process.Pid)
-		if err := w.command.Process.Signal(syscall.SIGTERM); err != nil { // ToDo: Handle error?
-			fmt.Printf("Error SIGTERM [PID: %d] %s\n", w.command.Process.Pid, err)
+
+		workerLog.Debug("Worker: Sending SIGTERM")
+		if err := w.command.Process.Signal(syscall.SIGTERM); err != nil {
+			workerLog.WithError(err).
+				Error("Worker: Sending SIGTERM error")
 		}
 	}()
 
 	go func() {
-		w.socketPath = filepath.Join(os.TempDir(), fmt.Sprintf("praefectus_%d.sock", w.PID()))
-		fmt.Printf("  Unix socket: %s\n", w.socketPath)
+		w.socketPath = filepath.Join(os.TempDir(), fmt.Sprintf("praefectus_%d.sock", w.command.Process.Pid))
+		workerLog.WithField("socket", w.socketPath).
+			Debug("Worker: IPC socket path")
 		if err := listenUnixSocket(w.socketPath, w.isStopping); err != nil {
-			fmt.Printf("Err: %+s\n", err)
+			workerLog.WithError(err).
+				Error("Worker: IPC communication error")
 		}
 	}()
 
@@ -66,14 +77,10 @@ func (w *Worker) Start(stopping chan struct{}) error {
 		return err
 	}
 
-	fmt.Printf("Worker stopped [PID: %d]\n", w.command.Process.Pid)
+	workerLog.Debug("Worker: Successfully stopped")
 	if err := w.wsStorage.ChangeState(wStat, metrics.WorkerStateStopped); err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func (w *Worker) PID() int {
-	return w.command.Process.Pid
 }

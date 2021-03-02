@@ -1,8 +1,7 @@
 package main
 
 import (
-	"log"
-
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/boodmo/praefectus/internal/config"
@@ -18,6 +17,10 @@ var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Start workers, timers and API server for metrics",
 	Run: func(cmd *cobra.Command, args []string) {
+		if flagVerbose {
+			log.SetLevel(log.DebugLevel) // ToDo: Move to global flag
+		}
+
 		cfg := &config.Config{
 			Server: config.ServerConfig{
 				Host: flagServerHost,
@@ -30,6 +33,16 @@ var runCmd = &cobra.Command{
 			},
 		}
 		cfg.Workers = append(cfg.Workers, flagWorkerPoolCmds...)
+
+		//err := errors.New("Something went wrong")
+		////log.WithError(err).Error("Ticker error: failed to run command")
+		//newLog := log.WithFields(log.Fields{"cmd": "asdasd", "interval": 123})
+		//newLog.
+		//	WithFields(log.Fields{"alt": "zxczxcz", "isOK": true}).
+		//	WithError(err).
+		//	Debug("Ticker: Start command")
+		//log.Info("!!!")
+		//return
 
 		qStorage := metrics.NewQueueStorage()
 		qmStorage := metrics.NewQueueMessageStorage()

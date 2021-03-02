@@ -1,9 +1,10 @@
 package workers
 
 import (
-	"fmt"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/boodmo/praefectus/internal/config"
 	"github.com/boodmo/praefectus/internal/metrics"
@@ -33,37 +34,43 @@ func (p *Pool) Run() {
 
 	p.workerLoop(workerChan, wg)
 	wg.Wait()
-	fmt.Printf("Main: Done!\n")
+	log.Info("Pool: All workers stopped")
 }
 
 func (p *Pool) workerLoop(workerChan chan string, wg *sync.WaitGroup) {
-	var idx int
+	var workerIdCounter uint32
 	for {
 		select {
 		case <-p.isStopping:
-			fmt.Printf("Got stop signal\n")
+			log.Debug("Pool: Got stop signal")
 			return
 		case cmd := <-workerChan:
-			idx++
-			fmt.Printf("[WRK#%d] Got command for new worker: %s\n", idx, cmd)
+			workerIdCounter++
 			wg.Add(1)
-			go func(idx int) {
-				w, err := NewWorker(cmd, p.wsStorage)
+			log.WithFields(log.Fields{"worker_id": workerIdCounter, "cmd": cmd}).
+				Debug("Pool: Got command for new worker")
+			go func(workerId uint32) {
+				workerLog := log.WithField("worker_id", workerId)
+				w, err := NewWorker(workerId, cmd, p.wsStorage)
 				if err != nil {
-					fmt.Printf("[WRK#%d] Worker init error: %s\n", idx, err)
+					workerLog.WithError(err).
+						Error("Pool: Worker init error")
 					return
 				}
-				fmt.Printf("[WRK#%d] Starting new worker process\n", idx)
+
+				workerLog.Info("Pool: Starting new worker process")
 				if err := w.Start(w.isStopping); err != nil {
-					fmt.Printf("[WRK#%d] Process error: %s\n", idx, err)
+					workerLog.WithError(err).
+						Error("Pool: Process starting error")
 					time.Sleep(3 * time.Second)
 				}
-				fmt.Printf("[WRK#%d] Done!\n", idx)
+				workerLog.Info("Pool: Finished worker process")
 				wg.Done()
 
-				fmt.Printf("[WRK#%d] Start new worker after stopping\n", idx)
+				workerLog.WithField("cmd", cmd).
+					Debug("Pool: Restart new worker after stopping")
 				workerChan <- cmd
-			}(idx)
+			}(workerIdCounter)
 		}
 	}
 }

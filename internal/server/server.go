@@ -1,13 +1,13 @@
 package server
 
 import (
-	"log"
 	"net"
 	"net/http"
 	"strconv"
 
 	"github.com/heptiolabs/healthcheck"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/boodmo/praefectus/internal/config"
 	"github.com/boodmo/praefectus/internal/metrics"

@@ -1,11 +1,12 @@
 package timers
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/boodmo/praefectus/internal/config"
 )
@@ -25,19 +26,21 @@ func New(cfg *config.Config, isStopping chan struct{}) *Timers {
 func (t *Timers) Start() {
 	chunks := strings.Split(t.config.Timer.Command, " ")
 	if chunks[0] == "" {
-		fmt.Printf("Ticker error: command is required\n")
+		log.Error("Ticker error: command is required")
 		return
 	}
 
 	tc := time.NewTicker(time.Duration(t.config.Timer.Frequency) * time.Second)
-	for range tc.C {
-		fmt.Printf("Ticker! %s\n", t.config.Timer.Command)
+	log.WithFields(log.Fields{"cmd": t.config.Timer.Command, "interval": t.config.Timer.Frequency}).
+		Debug("Ticker: Start command")
 
+	for range tc.C {
+		log.WithField("cmd", t.config.Timer.Command).Debug("Ticker: Run command")
 		command := exec.Command(chunks[0], chunks[1:]...)
 		command.Stdout = os.Stdout
 		command.Stderr = os.Stderr
 		if err := command.Run(); err != nil {
-			fmt.Printf("Ticker Error: %s\n", err)
+			log.WithError(err).Error("Ticker error: failed to run command")
 		}
 	}
 }

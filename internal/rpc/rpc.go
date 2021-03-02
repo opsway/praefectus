@@ -54,8 +54,6 @@ func (h *PraefectusRPC) WorkerState(payload map[string]int, r *map[string]string
 }
 
 func (h *PraefectusRPC) MessageState(payload map[string]interface{}, r *map[string]string) error {
-	fmt.Printf("MessageState: %+v\n", payload)
-
 	id := payload["id"]
 
 	// ToDo: Map to struct
@@ -66,21 +64,17 @@ func (h *PraefectusRPC) MessageState(payload map[string]interface{}, r *map[stri
 			*r = map[string]string{"status": "Error", "msg": "State is required"}
 			return nil // ToDo: or return error
 		}
-		fmt.Printf("Message state [%s] changed to <%f>\n", id, state)
 	} else {
 		name := payload["name"]
 		transport := payload["transport"]
 		bus := payload["bus"]
-		qm := h.qmStorage.Add(id.(string), name.(string), transport.(string), bus.(string))
-		fmt.Printf("Message added %+v\n", qm)
+		h.qmStorage.Add(id.(string), name.(string), transport.(string), bus.(string))
 	}
 
 	return nil // ToDo: or return error
 }
 
 func (h *PraefectusRPC) QueueSize(payload map[string]interface{}, r *map[string]string) error {
-	//fmt.Printf("QueueSize: %+v\n", payload)
-
 	// ToDo: Map to struct
 	transport := payload["transport"]
 	bus := payload["bus"]
@@ -91,8 +85,6 @@ func (h *PraefectusRPC) QueueSize(payload map[string]interface{}, r *map[string]
 		q = h.qStorage.Add(transport.(string), bus.(string))
 	}
 	h.qStorage.ChangeSize(q, uint(size.(float64)))
-
-	fmt.Printf("Queue size changed: %+v\n", q)
 
 	return nil // ToDo: or return error
 }

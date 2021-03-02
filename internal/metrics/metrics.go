@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -114,7 +113,6 @@ func (m *Metrics) Start() {
 			m.messageProcessedTime.
 				WithLabelValues(qm.Name, qm.Transport, qm.Bus).
 				Observe(qm.GetProcessedTime().Seconds())
-			fmt.Printf("[Send Metric] Message %s has duration %f\n", qm.Name, qm.GetProcessedTime().Seconds())
 		}
 
 		queues := m.qStorage.GetList()
@@ -122,7 +120,6 @@ func (m *Metrics) Start() {
 			m.queueSize.
 				WithLabelValues(q.Transport, q.Bus).
 				Set(float64(q.Size))
-			fmt.Printf("[Send Metric] Queue %s:%s has size %f\n", q.Transport, q.Bus, float64(q.Size))
 		}
 
 		time.Sleep(5 * time.Second)

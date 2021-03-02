@@ -1,10 +1,11 @@
 package signals
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func CatchSigterm(isDone chan struct{}) {
@@ -12,9 +13,8 @@ func CatchSigterm(isDone chan struct{}) {
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
 
 	go func() {
-		fmt.Println("Waiting for signal")
 		sig := <-signals
-		fmt.Printf("GOT SIGNAL: %s\n", sig.String())
+		log.Debugf("Got system signal: %s", sig.String())
 		isDone <- struct{}{}
 	}()
 }
