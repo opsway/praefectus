@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"fmt"
 	"net/rpc"
 
 	"github.com/boodmo/praefectus/internal/metrics"
@@ -44,7 +43,6 @@ func (h *PraefectusRPC) WorkerState(payload map[string]int, r *map[string]string
 			return nil // ToDo: or return error
 		}
 
-		fmt.Printf("State changed to <%d>\n", state)
 		*r = map[string]string{"status": "OK"}
 		return nil
 	}
