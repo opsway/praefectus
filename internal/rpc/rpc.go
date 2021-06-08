@@ -3,7 +3,7 @@ package rpc
 import (
 	"net/rpc"
 
-	"github.com/boodmo/praefectus/internal/metrics"
+	"github.com/opsway/praefectus/internal/metrics"
 )
 
 type PraefectusRPC struct {

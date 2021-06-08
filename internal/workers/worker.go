@@ -11,7 +11,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/boodmo/praefectus/internal/metrics"
+	"github.com/opsway/praefectus/internal/metrics"
 )
 
 type Worker struct {

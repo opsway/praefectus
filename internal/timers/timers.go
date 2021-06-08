@@ -8,7 +8,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/boodmo/praefectus/internal/config"
+	"github.com/opsway/praefectus/internal/config"
 )
 
 type Timers struct {
