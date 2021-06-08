@@ -4,13 +4,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/boodmo/praefectus/internal/config"
-	"github.com/boodmo/praefectus/internal/metrics"
-	"github.com/boodmo/praefectus/internal/rpc"
-	"github.com/boodmo/praefectus/internal/server"
-	"github.com/boodmo/praefectus/internal/signals"
-	"github.com/boodmo/praefectus/internal/timers"
-	"github.com/boodmo/praefectus/internal/workers"
+	"github.com/opsway/praefectus/internal/config"
+	"github.com/opsway/praefectus/internal/metrics"
+	"github.com/opsway/praefectus/internal/rpc"
+	"github.com/opsway/praefectus/internal/server"
+	"github.com/opsway/praefectus/internal/signals"
+	"github.com/opsway/praefectus/internal/timers"
+	"github.com/opsway/praefectus/internal/workers"
 )
 
 var runCmd = &cobra.Command{

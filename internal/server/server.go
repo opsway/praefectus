@@ -9,8 +9,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/boodmo/praefectus/internal/config"
-	"github.com/boodmo/praefectus/internal/metrics"
+	"github.com/opsway/praefectus/internal/config"
+	"github.com/opsway/praefectus/internal/metrics"
 )
 
 type Server struct {

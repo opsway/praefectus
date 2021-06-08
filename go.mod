@@ -1,4 +1,4 @@
-module github.com/boodmo/praefectus
+module github.com/opsway/praefectus
 
 go 1.16
 
