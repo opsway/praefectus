@@ -3,6 +3,8 @@ package metrics
 import (
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // QueueMessageState enum
@@ -39,12 +41,14 @@ func (qm *QueueMessage) GetProcessedTime() time.Duration {
 // ToDo: Flush map by TTL
 type QueueMessageStorage struct {
 	storage map[string]*QueueMessage
+	ttl     time.Duration
 	mu      sync.Mutex
 }
 
 func NewQueueMessageStorage() *QueueMessageStorage {
 	return &QueueMessageStorage{
 		storage: make(map[string]*QueueMessage),
+		ttl:     15 * time.Minute,
 		mu:      sync.Mutex{},
 	}
 }
@@ -61,6 +65,14 @@ func (qmStorage *QueueMessageStorage) Add(id, name, transport, bus string) *Queu
 		StartedAt: time.Now(),
 	}
 	qmStorage.storage[id] = qm
+
+	// Remove outdated items
+	for idx, item := range qmStorage.storage {
+		if !item.FinishedAt.IsZero() && time.Now().After(item.FinishedAt.Add(qmStorage.ttl)) {
+			log.Debugf("Remove outdated item: %s", idx)
+			delete(qmStorage.storage, idx)
+		}
+	}
 
 	return qm
 }

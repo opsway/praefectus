@@ -34,16 +34,6 @@ var runCmd = &cobra.Command{
 		}
 		cfg.Workers = append(cfg.Workers, flagWorkerPoolCmds...)
 
-		//err := errors.New("Something went wrong")
-		////log.WithError(err).Error("Ticker error: failed to run command")
-		//newLog := log.WithFields(log.Fields{"cmd": "asdasd", "interval": 123})
-		//newLog.
-		//	WithFields(log.Fields{"alt": "zxczxcz", "isOK": true}).
-		//	WithError(err).
-		//	Debug("Ticker: Start command")
-		//log.Info("!!!")
-		//return
-
 		qStorage := metrics.NewQueueStorage()
 		qmStorage := metrics.NewQueueMessageStorage()
 		wsStorage := metrics.NewWorkerStatStorage()

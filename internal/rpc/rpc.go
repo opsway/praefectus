@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"errors"
 	"net/rpc"
 
 	"github.com/opsway/praefectus/internal/metrics"
@@ -52,24 +53,43 @@ func (h *PraefectusRPC) WorkerState(payload map[string]int, r *map[string]string
 }
 
 func (h *PraefectusRPC) MessageState(payload map[string]interface{}, r *map[string]string) error {
-	id := payload["id"]
+	id, ok := payload["id"].(string)
+	if !ok {
+		return errors.New("invalid type of field \"id\"")
+	}
 
 	// ToDo: Map to struct
-	qm := h.qmStorage.Get(id.(string))
+	qm := h.qmStorage.Get(id)
 	if qm != nil {
-		state := payload["state"]
-		if err := h.qmStorage.ChangeState(qm, metrics.QueueMessageState(state.(float64))); err != nil {
+		state := payload["state"].(float64)
+		if !ok {
+			return errors.New("invalid type of field \"state\"")
+		}
+
+		if err := h.qmStorage.ChangeState(qm, metrics.QueueMessageState(state)); err != nil {
 			*r = map[string]string{"status": "Error", "msg": "State is required"}
 			return nil // ToDo: or return error
 		}
 	} else {
-		name := payload["name"]
-		transport := payload["transport"]
-		bus := payload["bus"]
-		h.qmStorage.Add(id.(string), name.(string), transport.(string), bus.(string))
+		name, ok := payload["name"].(string)
+		if !ok {
+			return errors.New("invalid type of field \"name\"")
+		}
+
+		transport, ok := payload["transport"].(string)
+		if !ok {
+			return errors.New("invalid type of field \"transport\"")
+		}
+
+		bus, ok := payload["bus"].(string)
+		if !ok {
+			return errors.New("invalid type of field \"bus\"")
+		}
+
+		h.qmStorage.Add(id, name, transport, bus)
 	}
 
-	return nil // ToDo: or return error
+	return nil
 }
 
 func (h *PraefectusRPC) QueueSize(payload map[string]interface{}, r *map[string]string) error {
