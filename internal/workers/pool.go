@@ -11,40 +11,45 @@ import (
 )
 
 type Pool struct {
-	config     *config.Config
-	wsStorage  *metrics.WorkerStatStorage
-	isStopping chan struct{}
+	config       *config.Config
+	wsStorage    *metrics.WorkerStatStorage
+	isStopping   chan struct{}
+	workerStopCh map[uint32]chan struct{}
 }
 
 func NewPool(cfg *config.Config, stoppingChan chan struct{}, wsStorage *metrics.WorkerStatStorage) *Pool {
 	return &Pool{
-		config:     cfg,
-		wsStorage:  wsStorage,
-		isStopping: stoppingChan,
+		config:       cfg,
+		wsStorage:    wsStorage,
+		isStopping:   stoppingChan,
+		workerStopCh: map[uint32]chan struct{}{},
 	}
 }
 
 func (p *Pool) Run() {
 	wg := &sync.WaitGroup{}
 	commands := p.config.Workers
-	workerChan := make(chan string, len(commands))
+	workerCmdCh := make(chan string, len(commands))
 	for _, cmd := range commands {
-		workerChan <- cmd
+		workerCmdCh <- cmd
 	}
 
-	p.workerLoop(workerChan, wg)
+	p.workerLoop(workerCmdCh, wg)
 	wg.Wait()
 	log.Info("Pool: All workers stopped")
 }
 
-func (p *Pool) workerLoop(workerChan chan string, wg *sync.WaitGroup) {
+func (p *Pool) workerLoop(workerCmdCh chan string, wg *sync.WaitGroup) {
 	var workerIdCounter uint32
 	for {
 		select {
 		case <-p.isStopping:
 			log.Debug("Pool: Got stop signal")
+			for _, ch := range p.workerStopCh {
+				ch <- struct{}{}
+			}
 			return
-		case cmd := <-workerChan:
+		case cmd := <-workerCmdCh:
 			workerIdCounter++
 			wg.Add(1)
 			log.WithFields(log.Fields{"worker_id": workerIdCounter, "cmd": cmd}).
@@ -59,17 +64,19 @@ func (p *Pool) workerLoop(workerChan chan string, wg *sync.WaitGroup) {
 				}
 
 				workerLog.Info("Pool: Starting new worker process")
+				p.workerStopCh[workerId] = w.isStopping
 				if err := w.Start(w.isStopping); err != nil {
 					workerLog.WithError(err).
 						Error("Pool: Process starting error")
 					time.Sleep(3 * time.Second)
 				}
+				delete(p.workerStopCh, workerId)
 				workerLog.Info("Pool: Finished worker process")
 				wg.Done()
 
 				workerLog.WithField("cmd", cmd).
 					Debug("Pool: Restart new worker after stopping")
-				workerChan <- cmd
+				workerCmdCh <- cmd
 			}(workerIdCounter)
 		}
 	}
