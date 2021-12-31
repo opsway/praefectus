@@ -106,6 +106,8 @@ func (qmStorage *QueueMessageStorage) ChangeState(qm *QueueMessage, state QueueM
 
 func (qmStorage *QueueMessageStorage) CountByState(state QueueMessageState, afterTime time.Time) float64 {
 	var count float64
+	qmStorage.mu.Lock()
+	defer qmStorage.mu.Unlock()
 	for _, qm := range qmStorage.storage {
 		if qm.State == state && qm.FinishedAt.After(afterTime) {
 			count++
@@ -117,6 +119,8 @@ func (qmStorage *QueueMessageStorage) CountByState(state QueueMessageState, afte
 
 func (qmStorage *QueueMessageStorage) GetProcessedAfter(afterTime time.Time) []*QueueMessage {
 	result := make([]*QueueMessage, 0, 10)
+	qmStorage.mu.Lock()
+	defer qmStorage.mu.Unlock()
 	for _, qm := range qmStorage.storage {
 		if (qm.State == MessageStateSucceed || qm.State == MessageStateFailed) && qm.FinishedAt.After(afterTime) {
 			result = append(result, qm)
