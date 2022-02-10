@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -69,8 +70,9 @@ func NewMetrics(qStorage *QueueStorage, qmStorage *QueueMessageStorage, wsStorag
 			Namespace: "praefectus",
 			Name:      "message_processed_time",
 			Help:      "Duration of message processing",
+			Buckets:   []float64{.5, 3, 30, 120, 600, 3600},
 		},
-		[]string{"name", "transport", "bus"},
+		[]string{"name", "transport", "bus", "status"},
 	)
 	if err := prometheus.Register(messageProcessedTime); err != nil {
 		return nil, err
@@ -111,7 +113,7 @@ func (m *Metrics) Start() {
 		lastGatherTime = time.Now()
 		for _, qm := range processedMessages {
 			m.messageProcessedTime.
-				WithLabelValues(qm.Name, qm.Transport, qm.Bus).
+				WithLabelValues(qm.Name, qm.Transport, qm.Bus, strings.ToLower(qm.State.String())).
 				Observe(qm.GetProcessedTime().Seconds())
 		}
 
