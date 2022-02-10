@@ -5,8 +5,8 @@ import (
 	"net/rpc"
 	"os"
 
+	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"
 	log "github.com/sirupsen/logrus"
-	goridgeRpc "github.com/spiral/goridge/v3/pkg/rpc"
 )
 
 func listenUnixSocket(path string, isDone chan struct{}) error {
