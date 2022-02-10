@@ -15,6 +15,8 @@ lint:
 build:
 	@mkdir -p ./bin
 	@echo "Start building production image..." \
+    		&& export RELEASE_BUILD_TIME=$(shell date --utc +"%Y-%m-%dT%H:%M:%S%z") \
+    		&& export RELEASE_VERSION=$(shell date --utc +"%Y%m%d.%H%M") \
     		&& export RELEASE_COMMIT=$(shell git rev-parse --short HEAD)  \
     		&& docker build --tag=praefectus_tmp \
     			--build-arg="RELEASE_BUILD_TIME=$${RELEASE_BUILD_TIME}" \
