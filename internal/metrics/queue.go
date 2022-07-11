@@ -41,6 +41,9 @@ func (qStorage *QueueStorage) Add(transport, bus string) *Queue {
 }
 
 func (qStorage *QueueStorage) Get(transport, bus string) *Queue {
+	qStorage.mu.Lock()
+	defer qStorage.mu.Unlock()
+
 	for _, q := range qStorage.storage {
 		if q.Transport == transport && q.Bus == bus {
 			return q
@@ -51,6 +54,9 @@ func (qStorage *QueueStorage) Get(transport, bus string) *Queue {
 }
 
 func (qStorage *QueueStorage) Has(transport, bus string) bool {
+	qStorage.mu.Lock()
+	defer qStorage.mu.Unlock()
+
 	id := qStorage.generateId(transport, bus)
 	_, found := qStorage.storage[id]
 

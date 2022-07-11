@@ -79,6 +79,9 @@ func (qmStorage *QueueMessageStorage) Add(id, name, transport, bus string) *Queu
 
 func (qmStorage *QueueMessageStorage) Get(id string) *QueueMessage {
 	if qmStorage.Has(id) {
+		qmStorage.mu.Lock()
+		defer qmStorage.mu.Unlock()
+
 		return qmStorage.storage[id]
 	}
 
@@ -86,6 +89,8 @@ func (qmStorage *QueueMessageStorage) Get(id string) *QueueMessage {
 }
 
 func (qmStorage *QueueMessageStorage) Has(id string) bool {
+	qmStorage.mu.Lock()
+	defer qmStorage.mu.Unlock()
 	_, found := qmStorage.storage[id]
 
 	return found

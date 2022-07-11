@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine3.13
+FROM golang:1.18-alpine3.16
 
 RUN mkdir /app
 COPY go.mod go.sum /app/

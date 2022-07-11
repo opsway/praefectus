@@ -117,6 +117,7 @@ func (m *Metrics) Start() {
 				Observe(qm.GetProcessedTime().Seconds())
 		}
 
+		//TODO potential concurrent read-write
 		queues := m.qStorage.GetList()
 		for _, q := range queues {
 			m.queueSize.

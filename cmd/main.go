@@ -12,6 +12,7 @@ var (
 	flagTimerCmd       string
 	flagTimerInterval  uint16
 	flagVerbose        bool
+	flagMode           string
 )
 
 func init() {
@@ -21,6 +22,7 @@ func init() {
 	runCmd.Flags().StringVarP(&flagTimerCmd, "timer-cmd", "", "", "Command for running by timer")
 	runCmd.Flags().Uint16VarP(&flagTimerInterval, "timer-interval", "", 60, "Interval of timer")
 	runCmd.Flags().BoolVarP(&flagVerbose, "verbose", "v", false, "Show extra debug info")
+	runCmd.Flags().StringVarP(&flagMode, "mode", "m", "static", "Pool scale mode")
 }
 
 func main() {
