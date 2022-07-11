@@ -22,14 +22,21 @@ func (s WorkerState) String() string {
 	return [...]string{"Unknown", "Starting", "Started", "Idle", "Busy", "Stopping", "Stopped"}[s]
 }
 
+type timestampWorkerState struct {
+	state          WorkerState
+	timestamp      int64
+	secondsInState *secondsInState
+}
+
 // WorkerStat
 type WorkerStat struct {
-	PID        int
-	Transport  string
-	Bus        string
-	State      WorkerState
-	StartedAt  time.Time
-	FinishedAt time.Time
+	PID          int
+	Transport    string
+	Bus          string
+	State        WorkerState
+	StartedAt    time.Time
+	FinishedAt   time.Time
+	StateStorage *StateStorage
 }
 
 // WorkerStatStorage
@@ -46,15 +53,17 @@ func NewWorkerStatStorage() *WorkerStatStorage {
 }
 
 func (wsStorage *WorkerStatStorage) Add(pid int) *WorkerStat {
-	wsStorage.mu.Lock()
-	defer wsStorage.mu.Unlock()
 
 	if !wsStorage.Has(pid) {
+		wsStorage.mu.Lock()
+		defer wsStorage.mu.Unlock()
 		wStat := &WorkerStat{
-			PID:       pid,
-			State:     WorkerStateStarting,
-			StartedAt: time.Now(),
+			PID:          pid,
+			State:        WorkerStateStarting,
+			StartedAt:    time.Now(),
+			StateStorage: newStateStorage(),
 		}
+		wStat.StateStorage.add(WorkerStateStarting)
 		wsStorage.storage[pid] = wStat
 
 		return wStat
@@ -65,13 +74,29 @@ func (wsStorage *WorkerStatStorage) Add(pid int) *WorkerStat {
 
 func (wsStorage *WorkerStatStorage) Get(pid int) *WorkerStat {
 	if wsStorage.Has(pid) {
+		wsStorage.mu.Lock()
+		defer wsStorage.mu.Unlock()
+
 		return wsStorage.storage[pid]
 	}
 
 	return nil
 }
 
+func (wsStorage *WorkerStatStorage) Remove(pid int) {
+	if !wsStorage.Has(pid) {
+		return
+	}
+	wsStorage.mu.Lock()
+	defer wsStorage.mu.Unlock()
+
+	delete(wsStorage.storage, pid)
+}
+
 func (wsStorage *WorkerStatStorage) Has(pid int) bool {
+	wsStorage.mu.Lock()
+	defer wsStorage.mu.Unlock()
+
 	_, found := wsStorage.storage[pid]
 
 	return found
@@ -84,12 +109,16 @@ func (wsStorage *WorkerStatStorage) ChangeState(worker *WorkerStat, state Worker
 
 		// State validation?
 		w.State = state
+		w.StateStorage.add(state)
 	}
 
 	return nil
 }
 
 func (wsStorage *WorkerStatStorage) CountByState(state WorkerState) float64 {
+	wsStorage.mu.Lock()
+	defer wsStorage.mu.Unlock()
+
 	var count float64
 	for _, ws := range wsStorage.storage {
 		if ws.State == state {

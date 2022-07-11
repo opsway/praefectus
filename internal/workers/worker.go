@@ -84,3 +84,51 @@ func (w *Worker) Start(stopping chan struct{}) error {
 
 	return nil
 }
+
+func (w *Worker) StartScaleWorker(stopping chan struct{}, command *WorkerCommand) error {
+	if err := w.command.Start(); err != nil {
+		return err
+	}
+
+	workerLog := log.WithFields(log.Fields{"worker_id": w.id, "pid": w.command.Process.Pid})
+	workerLog.Debug("Worker: Successfully started")
+	wStat := w.wsStorage.Add(w.command.Process.Pid)
+
+	command.processId = &ProcessId{id: w.command.Process.Pid}
+
+	go func() {
+		<-stopping
+		workerLog.Debug("ScaleWorker: Sending SIGTERM")
+		if err := w.wsStorage.ChangeState(wStat, metrics.WorkerStateStopping); err != nil {
+			workerLog.WithError(err).
+				Error("Worker: Changing state error")
+		}
+
+		workerLog.Debug("Worker: Sending SIGTERM")
+		if err := w.command.Process.Signal(syscall.SIGTERM); err != nil {
+			workerLog.WithError(err).
+				Error("Worker: Sending SIGTERM error")
+		}
+	}()
+
+	go func() {
+		w.socketPath = filepath.Join(os.TempDir(), fmt.Sprintf("praefectus_%d.sock", w.command.Process.Pid))
+		workerLog.WithField("socket", w.socketPath).
+			Debug("Worker: IPC socket path")
+		if err := listenUnixSocket(w.socketPath, w.isStopping); err != nil {
+			workerLog.WithError(err).
+				Error("Worker: IPC communication error")
+		}
+	}()
+
+	if err := w.command.Wait(); err != nil {
+		return err
+	}
+
+	workerLog.Debug("Worker: Successfully stopped")
+	if err := w.wsStorage.ChangeState(wStat, metrics.WorkerStateStopped); err != nil {
+		return err
+	}
+
+	return nil
+}

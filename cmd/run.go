@@ -58,7 +58,16 @@ var runCmd = &cobra.Command{
 		t := timers.New(cfg, isStopping)
 		go t.Start()
 
-		p := workers.NewPool(cfg, isStopping, wsStorage)
-		p.Run()
+		switch flagMode {
+		case "static":
+			p := workers.NewPool(cfg, isStopping, wsStorage)
+			p.Run()
+			break
+		case "scale":
+			poolRange := workers.NewScalePoolRange(cfg, isStopping, wsStorage)
+			workers.RunScalePoolRange(poolRange)
+		default:
+			log.Fatal("Unknown scale-mode")
+		}
 	},
 }
