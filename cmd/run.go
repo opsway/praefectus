@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/opsway/praefectus/internal/signals"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/opsway/praefectus/internal/metrics"
 	"github.com/opsway/praefectus/internal/rpc"
 	"github.com/opsway/praefectus/internal/server"
-	"github.com/opsway/praefectus/internal/signals"
 	"github.com/opsway/praefectus/internal/timers"
 	"github.com/opsway/praefectus/internal/workers"
 )
@@ -43,8 +43,12 @@ var runCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		isStopping := make(chan struct{})
-		signals.CatchSigterm(isStopping)
+		channelPool := make([]chan struct{}, 0, 2)
+
+		tickerIsStopping := make(chan struct{})
+		poolIsStopping := make(chan struct{})
+
+		channelPool = append(channelPool, tickerIsStopping, poolIsStopping)
 
 		m, err := metrics.NewMetrics(qStorage, qmStorage, wsStorage)
 		if err != nil {
@@ -55,19 +59,22 @@ var runCmd = &cobra.Command{
 		apiServer := server.New(cfg, m)
 		go apiServer.Start()
 
-		t := timers.New(cfg, isStopping)
+		t := timers.New(cfg, tickerIsStopping)
 		go t.Start()
 
 		switch flagMode {
 		case "static":
-			p := workers.NewPool(cfg, isStopping, wsStorage)
+			p := workers.NewPool(cfg, poolIsStopping, wsStorage)
 			p.Run()
 			break
 		case "scale":
-			poolRange := workers.NewScalePoolRange(cfg, isStopping, wsStorage)
+			poolRange := workers.NewScalePoolRange(cfg, poolIsStopping, wsStorage)
 			workers.RunScalePoolRange(poolRange)
+			break
 		default:
 			log.Fatal("Unknown scale-mode")
 		}
+
+		signals.CatchSigterm(channelPool)
 	},
 }

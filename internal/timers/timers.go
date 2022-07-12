@@ -31,16 +31,23 @@ func (t *Timers) Start() {
 	}
 
 	tc := time.NewTicker(time.Duration(t.config.Timer.Frequency) * time.Second)
+	defer tc.Stop()
+
 	log.WithFields(log.Fields{"cmd": t.config.Timer.Command, "interval": t.config.Timer.Frequency}).
 		Debug("Ticker: Start command")
 
-	for range tc.C {
-		log.WithField("cmd", t.config.Timer.Command).Debug("Ticker: Run command")
-		command := exec.Command(chunks[0], chunks[1:]...)
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
-		if err := command.Run(); err != nil {
-			log.WithError(err).Error("Ticker error: failed to run command")
+	for {
+		select {
+		case <-t.isStopping:
+			return
+		case <-tc.C:
+			log.WithField("cmd", t.config.Timer.Command).Debug("Ticker: Run command")
+			command := exec.Command(chunks[0], chunks[1:]...)
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+			if err := command.Run(); err != nil {
+				log.WithError(err).Error("Ticker error: failed to run command")
+			}
 		}
 	}
 }

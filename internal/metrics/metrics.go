@@ -116,15 +116,17 @@ func (m *Metrics) Start() {
 				WithLabelValues(qm.Name, qm.Transport, qm.Bus, strings.ToLower(qm.State.String())).
 				Observe(qm.GetProcessedTime().Seconds())
 		}
-
-		//TODO potential concurrent read-write
-		queues := m.qStorage.GetList()
-		for _, q := range queues {
-			m.queueSize.
-				WithLabelValues(q.Transport, q.Bus).
-				Set(float64(q.Size))
-		}
+		m.updateQueueMetrics()
 
 		time.Sleep(5 * time.Second)
+	}
+}
+
+func (m *Metrics) updateQueueMetrics() {
+	m.qStorage.mu.Lock()
+	defer m.qStorage.mu.Unlock()
+
+	for _, q := range m.qStorage.storage {
+		m.queueSize.WithLabelValues(q.Transport, q.Bus).Set(float64(q.Size))
 	}
 }
