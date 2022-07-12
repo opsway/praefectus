@@ -86,7 +86,7 @@ func (p *ScalePool) tryDownscaleWorkers() {
 		workerIdleStatePercentage := workerStats.StateStorage.WorkerStatePercentage(metrics.WorkerStateIdle, now-int64(p.config.ScaleTick*1000), now)
 		totalIdlePercentage += int(workerIdleStatePercentage)
 
-		log.WithFields(log.Fields{"pool": p.id, "idle": workerIdleStatePercentage}).Info("-----=======Worker idle===========-----")
+		log.WithFields(log.Fields{"pool": p.id, "idle": workerIdleStatePercentage}).Debug("Scale pool: Worker idle %")
 		if workerIdleStatePercentage >= p.config.WorkerIdlePercentageLimit {
 
 			switch true {
@@ -109,7 +109,8 @@ func (p *ScalePool) tryDownscaleWorkers() {
 		}
 	}
 	workerPercentage := totalIdlePercentage / activeWorkers
-	log.WithFields(log.Fields{"pool": p.id, "idle": workerPercentage, "remove": removeWorkers}).Info("-----=======Pool idle===========-----")
+	log.WithFields(log.Fields{"pool": p.id, "idle": workerPercentage, "remove": removeWorkers, "activeWorkers": activeWorkers}).
+		Debug("PScale pool: pool total idle %")
 }
 
 func (p *ScalePool) tryRiseWorkers() {
@@ -154,11 +155,11 @@ func (p *ScalePool) calculateWorkersBusiness() uint8 {
 		}
 		res := workerStats.StateStorage.WorkerStatePercentage(metrics.WorkerStateBusy, start, end)
 		workersBusyness += int(res)
-		log.WithFields(log.Fields{"pool": p.id, "business": res}).Info("-----=======Worker business===========-----")
+		log.WithFields(log.Fields{"pool": p.id, "business": res}).Debug("Scale pool: Worker business %")
 	}
 
 	workerPercentage := math.Round(float64(workersBusyness) / float64(activeWorkers))
-	log.WithFields(log.Fields{"pool": p.id, "business": workerPercentage, "activeWorkers": activeWorkers}).Info("-----=======Pool business===========-----")
+	log.WithFields(log.Fields{"pool": p.id, "business": workerPercentage, "activeWorkers": activeWorkers}).Debug("Scale pool: pool total business %")
 
 	return uint8(workerPercentage)
 }

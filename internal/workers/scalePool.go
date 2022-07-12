@@ -102,7 +102,7 @@ func (p *ScalePool) workerLoop(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-loopStopChan:
-			log.Debug(fmt.Sprintf("ScalePool: loop sigterm %s", p.command))
+			log.WithField("id", p.id).Debug(fmt.Sprintf("ScalePool: loop sigterm %s", p.command))
 			for _, command := range p.workersRegistry.storage {
 				command.stop <- struct{}{}
 				command.state = Remove
@@ -161,7 +161,7 @@ func (p *ScalePool) addCommand(num uint8) {
 	if num == 0 {
 		return
 	}
-	log.WithField("id", p.id).Info(fmt.Sprintf("ScalePool: Got signal to rise %s workers", string(num)))
+	log.WithField("id", p.id).Debug(fmt.Sprintf("ScalePool: Got signal to rise %s workers", string(num)))
 
 	p.workersRegistry.mu.Lock()
 	defer p.workersRegistry.mu.Unlock()
@@ -180,6 +180,7 @@ func (p *ScalePool) catchStopSignal(wg *sync.WaitGroup) {
 		for {
 			select {
 			case <-p.isStopping:
+				log.WithField("id", p.id).Debug("Scale pool: got SIGTERM")
 				p.state = PoolStopped
 				for _, childChan := range p.childStopChan {
 					childChan <- struct{}{}
