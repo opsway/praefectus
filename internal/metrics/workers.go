@@ -53,10 +53,10 @@ func NewWorkerStatStorage() *WorkerStatStorage {
 }
 
 func (wsStorage *WorkerStatStorage) Add(pid int) *WorkerStat {
+	wsStorage.mu.Lock()
+	defer wsStorage.mu.Unlock()
 
 	if !wsStorage.find(pid) {
-		wsStorage.mu.Lock()
-		defer wsStorage.mu.Unlock()
 		wStat := &WorkerStat{
 			PID:          pid,
 			State:        WorkerStateStarting,
@@ -73,10 +73,9 @@ func (wsStorage *WorkerStatStorage) Add(pid int) *WorkerStat {
 }
 
 func (wsStorage *WorkerStatStorage) Get(pid int) *WorkerStat {
+	wsStorage.mu.Lock()
+	defer wsStorage.mu.Unlock()
 	if wsStorage.find(pid) {
-		wsStorage.mu.Lock()
-		defer wsStorage.mu.Unlock()
-
 		return wsStorage.storage[pid]
 	}
 
@@ -84,11 +83,11 @@ func (wsStorage *WorkerStatStorage) Get(pid int) *WorkerStat {
 }
 
 func (wsStorage *WorkerStatStorage) Remove(pid int) {
+	wsStorage.mu.Lock()
+	defer wsStorage.mu.Unlock()
 	if !wsStorage.find(pid) {
 		return
 	}
-	wsStorage.mu.Lock()
-	defer wsStorage.mu.Unlock()
 
 	delete(wsStorage.storage, pid)
 }
