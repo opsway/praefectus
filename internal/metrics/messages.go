@@ -78,10 +78,10 @@ func (qmStorage *QueueMessageStorage) Add(id, name, transport, bus string) *Queu
 }
 
 func (qmStorage *QueueMessageStorage) Get(id string) *QueueMessage {
-	if qmStorage.find(id) {
-		qmStorage.mu.Lock()
-		defer qmStorage.mu.Unlock()
+	qmStorage.mu.Lock()
+	defer qmStorage.mu.Unlock()
 
+	if qmStorage.find(id) {
 		return qmStorage.storage[id]
 	}
 
@@ -102,10 +102,10 @@ func (qmStorage *QueueMessageStorage) find(id string) bool {
 }
 
 func (qmStorage *QueueMessageStorage) ChangeState(qm *QueueMessage, state QueueMessageState) error {
-	if qmStorage.find(qm.ID) {
-		qmStorage.mu.Lock()
-		defer qmStorage.mu.Unlock()
+	qmStorage.mu.Lock()
+	defer qmStorage.mu.Unlock()
 
+	if qmStorage.find(qm.ID) {
 		// State validation?
 		qm.State = state
 		qm.FinishedAt = time.Now()
