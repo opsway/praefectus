@@ -27,10 +27,7 @@ var runCmd = &cobra.Command{
 				Port: flagServerPort,
 			},
 			Workers: make([]string, 0, len(flagWorkerPoolCmds)),
-			Timer: config.TimerConfig{
-				Command:   flagTimerCmd,
-				Frequency: flagTimerInterval,
-			},
+			Timer:   config.SetupTimersConfig(flagTimerCmd, flagTimerInterval),
 		}
 		cfg.Workers = append(cfg.Workers, flagWorkerPoolCmds...)
 

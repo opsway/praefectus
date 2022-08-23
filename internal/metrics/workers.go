@@ -131,3 +131,10 @@ func (wsStorage *WorkerStatStorage) CountByState(state WorkerState) float64 {
 
 	return count
 }
+
+func (wsStorage *WorkerStatStorage) Length() int {
+	wsStorage.mu.Lock()
+	defer wsStorage.mu.Unlock()
+
+	return len(wsStorage.storage)
+}
