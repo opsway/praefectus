@@ -3,6 +3,7 @@ package workers
 import (
 	"errors"
 	"fmt"
+	"github.com/opsway/praefectus/internal/config"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,7 +65,7 @@ func (w *Worker) Start(stopping chan struct{}) error {
 	}()
 
 	go func() {
-		w.socketPath = filepath.Join(os.TempDir(), fmt.Sprintf("praefectus_%d.sock", w.command.Process.Pid))
+		w.socketPath = filepath.Join(os.TempDir(), fmt.Sprintf(config.WorkerSocketPath, w.command.Process.Pid))
 		workerLog.WithField("socket", w.socketPath).
 			Debug("Worker: IPC socket path")
 		if err := listenUnixSocket(w.socketPath, w.isStopping); err != nil {

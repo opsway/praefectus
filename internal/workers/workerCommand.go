@@ -18,6 +18,20 @@ type WorkerStorage struct {
 	mu      sync.Mutex
 }
 
+func (s *WorkerStorage) activeWorkers() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	res := len(s.storage)
+	for _, proc := range s.storage {
+		if proc.processId == nil {
+			res--
+		}
+	}
+
+	return res
+}
+
 type ProcessId struct {
 	id int
 }

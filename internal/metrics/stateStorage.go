@@ -73,6 +73,23 @@ func (s *StateStorage) WorkerStatePercentage(state WorkerState, start int64, end
 	return uint8(result)
 }
 
+// CheckIdleFreeze - started more than timeSpentLimit time ago and is still active (secondsInState == nil)
+func (s *StateStorage) CheckIdleFreeze(timeSpentLimit time.Duration) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	start := time.Now().UnixMilli() - timeSpentLimit.Milliseconds()
+	for _, timeWorkerState := range s.storage {
+		if timeWorkerState.state != WorkerStateIdle {
+			continue
+		}
+		if timeWorkerState.timestamp < start && timeWorkerState.secondsInState == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (s *StateStorage) has(pid int) bool {
 	_, found := s.storage[pid]
 

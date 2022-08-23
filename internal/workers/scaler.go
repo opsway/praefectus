@@ -1,6 +1,7 @@
 package workers
 
 import (
+	"github.com/opsway/praefectus/internal/config"
 	"github.com/opsway/praefectus/internal/metrics"
 	log "github.com/sirupsen/logrus"
 	"math"
@@ -19,16 +20,17 @@ func (p *ScalePool) scale(wg *sync.WaitGroup) {
 	// scale
 	wg.Add(1)
 	go func() {
-		ticker := time.NewTicker(p.config.ScaleTick * time.Second)
+		upScale := time.NewTicker(p.config.ScaleTick * time.Second)
 		defer func() {
-			ticker.Stop()
+			upScale.Stop()
+			p.lastUpScale = nil
 			wg.Done()
 		}()
 		for {
 			select {
 			case <-scaleTickerStopChan:
 				return
-			case <-ticker.C:
+			case <-upScale.C:
 				if p.state == PoolStopped {
 					return
 				}
@@ -40,16 +42,17 @@ func (p *ScalePool) scale(wg *sync.WaitGroup) {
 	//downscale
 	wg.Add(1)
 	go func() {
-		ticker := time.NewTicker(p.config.DownscaleTick * time.Second)
+		downScale := time.NewTicker(p.config.DownscaleTick * time.Second)
 		defer func() {
-			ticker.Stop()
+			downScale.Stop()
+			p.lastDownScale = nil
 			wg.Done()
 		}()
 		for {
 			select {
 			case <-downscaleTickerStopChan:
 				return
-			case <-ticker.C:
+			case <-downScale.C:
 				if p.state == PoolStopped {
 					return
 				}
@@ -63,53 +66,15 @@ func (p *ScalePool) tryDownscaleWorkers() {
 	if p.state == PoolStopped {
 		return
 	}
-	removeWorkers := 0
-	workersNum := len(p.workersRegistry.storage)
-
-	p.workersRegistry.mu.Lock()
-	defer p.workersRegistry.mu.Unlock()
-
-	totalIdlePercentage := 0
-	activeWorkers := len(p.workersRegistry.storage)
-	for _, command := range p.workersRegistry.storage {
-		if command.processId == nil {
-			activeWorkers--
-			continue
-		}
-		workerStats := p.wsStorage.Get(command.processId.id)
-		if workerStats == nil {
-			activeWorkers--
-			continue
-		}
-		now := time.Now().UnixMilli()
-
-		workerIdleStatePercentage := workerStats.StateStorage.WorkerStatePercentage(metrics.WorkerStateIdle, now-int64(p.config.ScaleTick*1000), now)
-		totalIdlePercentage += int(workerIdleStatePercentage)
-
-		log.WithFields(log.Fields{"pool": p.id, "idle": workerIdleStatePercentage}).Debug("Scale pool: Worker idle %")
-		if workerIdleStatePercentage >= p.config.WorkerIdlePercentageLimit {
-
-			switch true {
-			case command.state == Fresh:
-				command.state = MarkRemove
-				break
-			case command.state == MarkRemove:
-				removeWorkers++
-				if removeWorkers >= workersNum || workersNum == 1 {
-					break
-				}
-				command.state = Remove
-				command.stop <- struct{}{}
-				p.workersRegistry.Remove(command)
-				break
-			}
-		}
-		if workerIdleStatePercentage < p.config.WorkerIdlePercentageLimit {
-			command.state = Fresh
-		}
+	p.lastDownScale = &config.LastRunSeconds{Timestamp: time.Now().Unix()}
+	workerPercentage, activeWorkers, idleWorkers := p.processIdleWorkers()
+	if workerPercentage == 0 || idleWorkers == nil {
+		log.Panic("processIdleWorkers inappropriate result on active pool")
+		return
 	}
-	workerPercentage := totalIdlePercentage / activeWorkers
-	log.WithFields(log.Fields{"pool": p.id, "idle": workerPercentage, "remove": removeWorkers, "activeWorkers": activeWorkers}).
+
+	removedWorkers := p.removeIdleWorkers(idleWorkers...)
+	log.WithFields(log.Fields{"pool": p.id, "idle": workerPercentage, "remove": removedWorkers, "activeWorkers": activeWorkers}).
 		Debug("PScale pool: pool total idle %")
 }
 
@@ -118,6 +83,7 @@ func (p *ScalePool) tryRiseWorkers() {
 		return
 	}
 
+	p.lastUpScale = &config.LastRunSeconds{Timestamp: time.Now().Unix()}
 	workersBusinessPercentage := p.calculateWorkersBusiness()
 	workersIncrease := uint8(0)
 	switch true {
@@ -136,6 +102,9 @@ func (p *ScalePool) tryRiseWorkers() {
 }
 
 func (p *ScalePool) calculateWorkersBusiness() uint8 {
+	if p.state == PoolStopped {
+		return 0
+	}
 	p.workersRegistry.mu.Lock()
 	defer p.workersRegistry.mu.Unlock()
 
@@ -162,4 +131,73 @@ func (p *ScalePool) calculateWorkersBusiness() uint8 {
 	log.WithFields(log.Fields{"pool": p.id, "business": workerPercentage, "activeWorkers": activeWorkers}).Debug("Scale pool: pool total business %")
 
 	return uint8(workerPercentage)
+}
+
+func (p *ScalePool) processIdleWorkers() (int, int, []*WorkerCommand) {
+	if p.state == PoolStopped {
+		return 0, 0, nil
+	}
+	p.workersRegistry.mu.Lock()
+	defer p.workersRegistry.mu.Unlock()
+
+	totalIdlePercentage := 0
+	idleWorkers := make([]*WorkerCommand, 0)
+	activeWorkers := len(p.workersRegistry.storage)
+	// append idleWorkers, mark fresh if command is busy
+	for _, command := range p.workersRegistry.storage {
+		if command.processId == nil {
+			activeWorkers--
+			continue
+		}
+		workerStats := p.wsStorage.Get(command.processId.id)
+		if workerStats == nil {
+			activeWorkers--
+			continue
+		}
+		now := time.Now().UnixMilli()
+
+		workerIdleStatePercentage := workerStats.StateStorage.WorkerStatePercentage(metrics.WorkerStateIdle, now-int64(p.config.ScaleTick*1000), now)
+		totalIdlePercentage += int(workerIdleStatePercentage)
+
+		log.WithFields(log.Fields{"pool": p.id, "idle": workerIdleStatePercentage}).Debug("Scale pool: Worker idle %")
+		if workerIdleStatePercentage >= p.config.WorkerIdlePercentageLimit {
+			idleWorkers = append(idleWorkers, command)
+		}
+		if workerIdleStatePercentage < p.config.WorkerIdlePercentageLimit {
+			command.state = Fresh
+		}
+	}
+	workerPercentage := totalIdlePercentage / activeWorkers
+
+	return workerPercentage, activeWorkers, idleWorkers
+}
+
+func (p *ScalePool) removeIdleWorkers(commands ...*WorkerCommand) int {
+	if p.state == PoolStopped {
+		return 0
+	}
+	p.workersRegistry.mu.Lock()
+	defer p.workersRegistry.mu.Unlock()
+
+	removedWorkers := 0
+	idleWorkersNum := len(commands)
+	for _, command := range commands {
+		switch true {
+		case command.state == Fresh:
+			command.state = MarkRemove
+			break
+		case command.state == MarkRemove:
+			removedWorkers++
+			if idleWorkersNum == 1 {
+				break
+			}
+			command.state = Remove
+			command.stop <- struct{}{}
+			p.workersRegistry.Remove(command)
+			break
+		}
+		idleWorkersNum--
+	}
+
+	return removedWorkers
 }
