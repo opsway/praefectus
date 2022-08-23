@@ -17,6 +17,9 @@ const (
 	WorkerIdlePercentageLimitEnv   string = "PRAEFECTUS_WORKER_IDLE_PERCENTAGE_LIMIT"
 	ScaleTickEnv                   string = "PRAEFECTUS_POOL_SCALE_TICK"
 	DownscaleTickEnv               string = "PRAEFECTUS_POOL_DOWNSCALE_TICK"
+	ScalePoolIpcSocketPathEnv      string = "PRAEFECTUS_POOL_IPC_SOCKET_PATH"
+	ScalePoolIpcProcessTimeoutEnv  string = "PRAEFECTUS_POOL_IPC_PROCESS_TIMEOUT"
+	ScalePoolIdleSpentLimitEnv     string = "PRAEFECTUS_POOL_IDLE_SPENT_LIMIT"
 )
 
 const (
@@ -30,6 +33,11 @@ const (
 	WorkerIdlePercentageLimit                 = uint8(80)
 	ScaleTick                   time.Duration = 30
 	DownscaleTick               time.Duration = 30
+	ScalePoolIpcProcessTimeout  time.Duration = 10
+	ScalePoolIpcSocketPath                    = "praefectus_%d_liveness.sock"
+	TimersIpcSocketPath                       = "praefectus_timers_liveness.sock"
+	WorkerSocketPath                          = "praefectus_%d.sock"
+	ScalePoolIdleSpentLimit     time.Duration = 2
 )
 
 type Config struct {
@@ -49,8 +57,9 @@ type WorkersConfig struct {
 }
 
 type TimerConfig struct {
-	Command   string
-	Frequency uint16
+	Command       string
+	Frequency     uint16
+	IpcSocketPath string
 }
 
 type ScalePoolConfig struct {
@@ -64,6 +73,23 @@ type ScalePoolConfig struct {
 	ScaleTick                   time.Duration
 	DownscaleTick               time.Duration
 	MaxProcessPullSize          uint8
+	IpcSocketPath               string
+	ProcessIdleSpentLimit       time.Duration
+}
+
+type LivenessProbeConfig struct {
+	IpcSocketPath    string
+	PoolNumber       int
+	ProcessTimeout   time.Duration
+	ProcessIdleLimit time.Duration
+}
+
+func SetupTimersConfig(command string, frequency uint16) TimerConfig {
+	return TimerConfig{
+		Command:       command,
+		Frequency:     frequency,
+		IpcSocketPath: TimersIpcSocketPath,
+	}
 }
 
 func SetupPoolConfig() *ScalePoolConfig {
@@ -78,6 +104,8 @@ func SetupPoolConfig() *ScalePoolConfig {
 		WorkerIdlePercentageLimit:   WorkerIdlePercentageLimit,
 		ScaleTick:                   ScaleTick,
 		DownscaleTick:               DownscaleTick,
+		IpcSocketPath:               ScalePoolIpcSocketPath,
+		ProcessIdleSpentLimit:       ScalePoolIdleSpentLimit,
 	}
 
 	envBufferSize, found := parseUint8Env(MaxProcessPoolSizeEnv)
@@ -130,7 +158,42 @@ func SetupPoolConfig() *ScalePoolConfig {
 		poolConfig.DownscaleTick = envDownscaleTick
 	}
 
+	envIpcSocketPath, found := parseStringEnv(ScalePoolIpcSocketPathEnv)
+	if found {
+		poolConfig.IpcSocketPath = envIpcSocketPath
+	}
+	envProcessIdleLimit, found := parseDurationEnv(ScalePoolIdleSpentLimitEnv)
+	if found {
+		poolConfig.ProcessIdleSpentLimit = envProcessIdleLimit
+	}
+
 	return poolConfig
+}
+
+func SetupLivenessProbeConfig(poolNumber int) *LivenessProbeConfig {
+	config := &LivenessProbeConfig{
+		PoolNumber:     poolNumber,
+		IpcSocketPath:  ScalePoolIpcSocketPath,
+		ProcessTimeout: ScalePoolIpcProcessTimeout,
+	}
+	envIpcSocketPath, found := parseStringEnv(ScalePoolIpcSocketPathEnv)
+	if found {
+		config.IpcSocketPath = envIpcSocketPath
+	}
+	envProcessTimeout, found := parseDurationEnv(ScalePoolIpcProcessTimeoutEnv)
+	if found {
+		config.ProcessTimeout = envProcessTimeout
+	}
+
+	return config
+}
+
+func parseStringEnv(env string) (string, bool) {
+	envValue, found := os.LookupEnv(env)
+	if found {
+		return envValue, true
+	}
+	return "", false
 }
 
 func parseUint8Env(env string) (uint8, bool) {

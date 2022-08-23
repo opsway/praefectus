@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/opsway/praefectus/internal/rpc"
 	"net"
 	"net/http"
 	"strconv"
@@ -32,6 +33,7 @@ func (s *Server) Start() {
 	http.HandleFunc("/ready", health.ReadyEndpoint)
 	http.HandleFunc("/live", health.LiveEndpoint)
 	http.Handle("/metrics", promhttp.Handler())
+	http.Handle("/health", rpc.NewHealthHandler(s.config))
 
 	log.Fatal(http.ListenAndServe(addr, nil))
 }

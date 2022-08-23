@@ -13,6 +13,7 @@ var (
 	flagTimerInterval  uint16
 	flagVerbose        bool
 	flagMode           string
+	flagPoolNumber     int
 )
 
 func init() {
@@ -23,6 +24,7 @@ func init() {
 	runCmd.Flags().Uint16VarP(&flagTimerInterval, "timer-interval", "", 60, "Interval of timer")
 	runCmd.Flags().BoolVarP(&flagVerbose, "verbose", "v", false, "Show extra debug info")
 	runCmd.Flags().StringVarP(&flagMode, "mode", "m", "static", "Pool scale mode")
+	livenessCmd.Flags().IntVarP(&flagPoolNumber, "number", "n", 1, "Pool number")
 }
 
 func main() {
@@ -34,6 +36,7 @@ func main() {
 
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(livenessCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)

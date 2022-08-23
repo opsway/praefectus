@@ -28,6 +28,8 @@ type ScalePool struct {
 	id              int
 	childStopChan   map[int]chan struct{}
 	config          *config.ScalePoolConfig
+	lastUpScale     *config.LastRunSeconds
+	lastDownScale   *config.LastRunSeconds
 }
 
 func NewScalePoolRange(commandConfig *config.Config, stoppingChan chan struct{}, wsStorage *metrics.WorkerStatStorage) []*ScalePool {
@@ -86,6 +88,7 @@ func (p *ScalePool) Run() {
 	p.addCommand(1)
 	p.scale(wg)
 	p.catchStopSignal(wg)
+	go p.listenIpcCall()
 	p.workerLoop(wg)
 	wg.Wait()
 	for _, childChan := range p.childStopChan {
@@ -189,4 +192,29 @@ func (p *ScalePool) catchStopSignal(wg *sync.WaitGroup) {
 			}
 		}
 	}()
+}
+
+func (p *ScalePool) checkWorkersIdleFreeze(limit time.Duration) bool {
+	if p.state == PoolStopped {
+		return false
+	}
+	p.workersRegistry.mu.Lock()
+	defer p.workersRegistry.mu.Unlock()
+	for _, command := range p.workersRegistry.storage {
+		if command.processId == nil {
+			continue
+		}
+		workerStats := p.wsStorage.Get(command.processId.id)
+		if workerStats == nil {
+			continue
+		}
+		if workerStats.State != metrics.WorkerStateIdle {
+			continue
+		}
+		if workerStats.StateStorage.CheckIdleFreeze(limit) {
+			return true
+		}
+	}
+
+	return false
 }
