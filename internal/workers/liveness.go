@@ -40,8 +40,8 @@ func (s *Liveness) Check(request string, reply *bool) error {
 
 	now := time.Now().Unix()
 
-	upScaleFreeze := lastUpScale == nil || (now-lastUpScale.Timestamp) > int64(s.pool.config.ScaleTick.Seconds())
-	downScaleFreeze := lastDownScale == nil || (now-lastDownScale.Timestamp) > int64(s.pool.config.DownscaleTick.Seconds())
+	upScaleFreeze := lastUpScale == nil || (now-lastUpScale.Timestamp) > int64(s.pool.config.ScaleTick)
+	downScaleFreeze := lastDownScale == nil || (now-lastDownScale.Timestamp) > int64(s.pool.config.DownscaleTick)
 
 	workersHasIdleFreeze := s.pool.checkWorkersIdleFreeze(s.pool.config.ProcessIdleSpentLimit)
 
@@ -52,9 +52,9 @@ func (s *Liveness) Check(request string, reply *bool) error {
 		"runningProcesses":          runningProcesses,
 		"poolState":                 s.pool.state != PoolStopped,
 		"wsStorage":                 s.pool.wsStorage.Length() > 0,
-		"upScaleFreeze":             upScaleFreeze,
-		"DownScaleFreeze":           downScaleFreeze,
-		"workerHasFreeze":           workersHasIdleFreeze,
+		"upScaleFreeze":             upScaleFreeze == false,
+		"downScaleFreeze":           downScaleFreeze == false,
+		"workerHasFreeze":           workersHasIdleFreeze == false,
 		"workerIpcCheck":            workersIpcCheck,
 	}).Debug("Liveness result")
 
@@ -62,8 +62,8 @@ func (s *Liveness) Check(request string, reply *bool) error {
 		poolActiveWorkers <= runningWorkersNumber &&
 		s.pool.state != PoolStopped &&
 		s.pool.wsStorage.Length() > -1 &&
-		!upScaleFreeze &&
-		!downScaleFreeze &&
+		upScaleFreeze == false &&
+		downScaleFreeze == false &&
 		workersHasIdleFreeze == false &&
 		workersIpcCheck
 
