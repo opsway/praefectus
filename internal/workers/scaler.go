@@ -68,8 +68,8 @@ func (p *ScalePool) tryDownscaleWorkers() {
 	}
 	p.lastDownScale = &config.LastRunSeconds{Timestamp: time.Now().Unix()}
 	workerPercentage, activeWorkers, idleWorkers := p.processIdleWorkers()
-	if workerPercentage == 0 || idleWorkers == nil {
-		log.Panic("processIdleWorkers inappropriate result on active pool")
+	if workerPercentage == 0 && idleWorkers == nil {
+		log.Warning("processIdleWorkers inappropriate result on active pool")
 		return
 	}
 

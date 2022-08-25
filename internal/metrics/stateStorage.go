@@ -77,12 +77,12 @@ func (s *StateStorage) WorkerStatePercentage(state WorkerState, start int64, end
 func (s *StateStorage) CheckIdleFreeze(timeSpentLimit time.Duration) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	start := time.Now().UnixMilli() - timeSpentLimit.Milliseconds()
+	now := time.Now().UnixMilli()
 	for _, timeWorkerState := range s.storage {
 		if timeWorkerState.state != WorkerStateIdle {
 			continue
 		}
-		if timeWorkerState.timestamp < start && timeWorkerState.secondsInState == nil {
+		if now-timeWorkerState.timestamp > int64(timeSpentLimit*time.Millisecond) && timeWorkerState.secondsInState == nil {
 			return true
 		}
 	}
